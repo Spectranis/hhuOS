@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>
 
 cmake_minimum_required(VERSION 3.14)
- 
+
 target_sources(device PUBLIC
         ${HHUOS_SRC_DIR}/device/network/MacAddressNode.cpp
         ${HHUOS_SRC_DIR}/device/network/NetworkDevice.cpp
@@ -23,4 +23,6 @@ target_sources(device PUBLIC
         ${HHUOS_SRC_DIR}/device/network/PacketReader.cpp
         ${HHUOS_SRC_DIR}/device/network/PacketWriter.cpp
         ${HHUOS_SRC_DIR}/device/network/loopback/Loopback.cpp
-        ${HHUOS_SRC_DIR}/device/network/rtl8139/Rtl8139.cpp)
+        ${HHUOS_SRC_DIR}/device/network/rtl8139/Rtl8139.cpp
+        ${HHUOS_SRC_DIR}/device/network/ne2000/Ne2000.cpp
+)

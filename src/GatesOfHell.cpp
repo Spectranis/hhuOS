@@ -78,6 +78,7 @@
 #include "kernel/network/ip4/Ip4Module.h"
 #include "kernel/network/NetworkStack.h"
 #include "device/network/rtl8139/Rtl8139.h"
+#include "device/network/ne2000/Ne2000.h"
 #include "kernel/network/ip4/Ip4RoutingModule.h"
 #include "lib/util/network/ip4/Ip4Route.h"
 #include "lib/util/network/ip4/Ip4SubnetAddress.h"
@@ -484,6 +485,21 @@ void GatesOfHell::initializeNetwork() {
             ip4Module.registerInterface(address, eth0);
             ip4Module.getRoutingModule().addRoute(Util::Network::Ip4::Ip4Route(address, "eth0"));
             ip4Module.getRoutingModule().addRoute(Util::Network::Ip4::Ip4Route(Util::Network::Ip4::Ip4SubnetAddress("10.0.2.15/0"), Util::Network::Ip4::Ip4Address("10.0.2.2"), "eth0"));
+        }
+    }
+    /*
+     * ToDo: initalize Ne2000 card
+     */
+    Device::Network::Ne2000::initializeAvailableCards();
+    if(networkService.isNetworkDeviceRegistered("eth1")){
+        auto &eth1 = networkService.getNetworkDevice("eth1");
+        auto &ip4Module = networkService.getNetworkStack().getIp4Module();
+
+        if(Device::FirmwareConfiguration::isAvailable()){
+            auto address = Util::Network::Ip4::Ip4SubnetAddress("1.2.3.4/24");
+            ip4Module.registerInterface(address, eth1);
+            ip4Module.getRoutingModule().addRoute(Util::Network::Ip4::Ip4Route(address, "eth1"));
+            ip4Module.getRoutingModule().addRoute(Util::Network::Ip4::Ip4Route(Util::Network::Ip4::Ip4SubnetAddress("1.2.3.4/0"), Util::Network::Ip4::Ip4Address("1.2.3.2"), "eth1"));
         }
     }
 }

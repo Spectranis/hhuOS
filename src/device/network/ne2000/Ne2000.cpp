@@ -3,8 +3,12 @@
 //
 
 #include "Ne2000.h"
+
 #include "device/pci/Pci.h"
 #include "device/pci/PciDevice.h"
+
+#include "kernel/system/System.h"
+#include "kernel/service/NetworkService.h"
 
 #include "lib/util/collection/Array.h"
 #include "lib/util/base/Address.h"
@@ -13,8 +17,7 @@
 /*
  * Include necessary kernel modules
  */
-#include "kernel/system/System.h"
-#include "kernel/service/NetworkService.h"
+
 #include "kernel/service/InterruptService.h"
 #include "kernel/service/MemoryService.h"
 #include "kernel/log/Logger.h"
@@ -22,21 +25,21 @@
 
 namespace Kernel {
     struct InterruptFrame;
-    enum InterruptVector : uint_8;
-}
+    enum InterruptVector : uint8_t;
+}  // namespace Kernel
 
 namespace Device::Network {
     Kernel::Logger Ne2000::log = Kernel::Logger::get("Ne2000");
 
     /*
-     * ToDo
+     * ToDo Implement Hardware Initialization method
      */
     Ne2000::Ne2000(const PciDevice &pciDevice) : pciDevice(pciDevice) {
         log.info("Configure Ne2000 PCI registers");
 
-        uint16_t command = pciDevice.readWord(Pci::COMMAND);
+        uint16_t command = pciDevice.readWord( Pci::COMMAND );
         command |= Pci::BUS_MASTER | Pci::IO_SPACE;
-        pciDevice.writeWord(Pci::Command, command);
+        pciDevice.writeWord(Pci::COMMAND, command);
 
         // ~0x3
         uint16_t ioBaseAddress = pciDevice.readDoubleWord(Pci::BASE_ADDRESS_0) & ~0x3;
@@ -46,16 +49,16 @@ namespace Device::Network {
          * ToDo Power on ne2000
          */
         log.info("Ne2000: Start device");
-        baseRegister.writeByte(COMMAND, STA)
+        baseRegister.writeByte(COMMAND, STA);
 
         log.info("Ne2000: Reset device");
-        baseRegister.writeByte(COMMAND, STP)
+        baseRegister.writeByte(COMMAND, STP);
         while (baseRegister.readByte(COMMAND) & STP){
             Util::Async::Thread::sleep(Util::Time::Timestamp::ofMilliseconds(1));
         }
 
-        log.info("Ne2000: Mask Interrupts")
-        // Interrupt Mask Register
+        log.info("Ne2000: Mask Interrupts");
+        /* Interrupt Mask Register */
         baseRegister.writeByte(ISR, ISR_PRX | ISR_PTX | ISR_RXE | ISR_TXE | ISR_OVW | ISR_CNT | ISR_RDC | ISR_RST);
         /*
          * Initialization Packet Reception:
@@ -81,63 +84,72 @@ namespace Device::Network {
         /*
          * Clear Count Register 0 and 1
          */
-        baseRegister.writeByte(RBCR0);
-        baseRegister.writeByte(RBCR1);
+        baseRegister.writeByte(RBCR0, 0);
+        baseRegister.writeByte(RBCR1, 0);
 
-        //Mask completion IRQ:
+        /* Mask completion IRQ: */
         baseRegister.writeByte(IMR, 0x00);
         baseRegister.writeByte(ISR, ISR_PRX | ISR_PTX | ISR_RXE | ISR_TXE | ISR_OVW | ISR_CNT | ISR_RDC | ISR_RST);
 
-        // Enable Receive Monitoring
+        /* Enable Receive Monitoring */
         baseRegister.writeByte(RCR, RCR_MON);
-        // Enable Loopback mode
+        /* Enable Loopback mode */
         baseRegister.writeByte(TCR, TCR_LB1);
-        // Read 32 bytes starting at RemoteByteCountRegister0
+        /* Read 32 bytes starting at RemoteByteCountRegister0 */
         baseRegister.writeDoubleWord(RBCR0, 32);
-        // Count high
+        /* Count high */
         baseRegister.writeByte(RBCR1, 0);
-        //Start DMA at 0
+        /* Start DMA at 0 */
         baseRegister.writeByte(RSAR0, 0);
-        //Start DMA at high
+        /* Start DMA at high */
         baseRegister.writeByte(RSAR1, 0);
-        //Start read
+        /* Start read */
         baseRegister.writeDoubleWord(0x0A);
 
-        // write Mac address into PAR0 to PAR5
-        baseRegister.writeByte(PAR0, 0x10);
-        baseRegister.writeByte(PAR1, 0x11);
-        baseRegister.writeByte(PAR2, 0x12);
-        baseRegister.writeByte(PAR3, 0x13);
-        baseRegister.writeByte(PAR4, 0x14);
-        baseRegister.writeByte(PAR5, 0x15);
+        /* get Mac address and write it into PAR0 to PAR5 */
+        uint8_t prom[32];
+        for(int i = 32; i < 32; i ++){
+            prom[i] = baseRegister.readByte(ioBaseAddress + 0x10);
+        }
+        for(int i = 6; i < 6; i++){
+            baseRegister.writeByte(PAR0+i, prom[i]);
+        }
 
-
-        log.info("Ne2000: Configure Buffer");
-
-
+        //log.info("Ne2000: Configure Buffer");
+        /*
+         * ToDo
+         */
+        /* Initialize transmit buffer */
+        baseRegister.writeByte(PSTOP, 0x1);
+        baseRegister.writeByte(BNRY, 0x1-1);
 
     }
 
     /*
      * ToDo initialize cards that are supported by this driver
      */
-    void Ne2000::initializeAvailableCards() {
+void Ne2000::initializeAvailableCards() {
+    auto &networkService = Kernel::System::getService<Kernel::NetworkService>();
+    auto devices = Pci::search(VENDOR_ID, DEVICE_ID);
 
+    for (const auto &device:devices){
+        auto *ne2000 = new Ne2000(device);
+        ne2000->plugin();
+        networkService.registerNetworkDevice(ne2000, "eth");
     }
+}
 
     /*
-     * ToDo Get MacAddress of the NE2000 Card
+     * read MacAddress form PAR0 - PAR5 registers
      */
     Util::Network::MacAddress Ne2000::getMacAddress() const {
-        uint8_t buffer[6] = {
-                baseRegister.readByte(PAR0),
-                baseRegister.readByte(PAR1),
-                baseRegister.readByte(PAR2),
-                baseRegister.readByte(PAR3),
-                baseRegister.readByte(PAR4),
-                baseRegister.readByte(PAR5)
-        }:
+        uint8_t buffer[6];
+        for(uint8_t i = 0; i < 6; i ++){
+            buffer[i] = baseRegister.readByte(PAR0+i);
+        }
+        return Util::Network::MacAddress(buffer);
     }
+
     /*
      * ToDo Resolve Interrupt trigger
      */
@@ -191,7 +203,7 @@ namespace Device::Network {
      * ToDo
      */
     void Ne2000::handleBufferOverflow(){
-
+        return;
     }
 
     /*
@@ -230,6 +242,7 @@ namespace Device::Network {
      *     if not equal: allow DMA to use next buffer
      *
      */
+        return;
     }
     /*
      * ToDo
@@ -247,7 +260,13 @@ namespace Device::Network {
         /*
          * ISR Services the
          */
+        return;
     }
 
-
+    /*
+     * ToDo
+     */
+    void Ne2000::plugin() {
+        return;
+    }
 }
