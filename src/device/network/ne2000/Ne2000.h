@@ -274,6 +274,8 @@ public:
 
         void setPacketSize(uint32_t size);
 
+        void sendPacket(const uint8_t *packet, uint32_t length);
+
         void processReceivedPacket();
 
         PciDevice pciDevice;
@@ -290,8 +292,18 @@ public:
 
         static Kernel::Logger log; // ToDo
 
-        static const constexpr uint16_t VENDOR_ID   = 0x0000; // ToDo
-        static const constexpr uint16_t DEVICE_ID   = 0x0000; // ToDo
+        /*
+         * https://github.com/hisilicon/qemu/blob/master/hw/net/ne2000-pci.c
+         * https://github.com/hisilicon/qemu/blob/master/hw/vfio/pci-quirks.c#L1006
+         * #define PCI_VENDOR_ID_REALTEK 0x10ec
+         */
+        static const constexpr uint16_t VENDOR_ID   = 0x10ec; // ToDo
+        /*
+         * https://github.com/hisilicon/qemu/blob/master/include/hw/pci/pci.h#L48
+         * #define PCI_DEVICE_ID_REALTEK_8029       0x8029
+         */
+        static const constexpr uint16_t DEVICE_ID   = 0x8029; // ToDo
+
         static const constexpr uint16_t NIC_ID      = 0x0000; // ToDo
         static const constexpr uint32_t RBufferSize = 0x0000; // ToDo
         static const constexpr uint32_t TBufferSize = 0x0000; // ToDo
