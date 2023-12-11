@@ -488,7 +488,7 @@ void GatesOfHell::initializeNetwork() {
         }
     }
     /*
-     * ToDo: initalize Ne2000 card
+     * ToDo: initialize Ne2000 card
      */
     Device::Network::Ne2000::initializeAvailableCards();
     if(networkService.isNetworkDeviceRegistered("eth1")){
@@ -498,8 +498,13 @@ void GatesOfHell::initializeNetwork() {
         if(Device::FirmwareConfiguration::isAvailable()){
             auto address = Util::Network::Ip4::Ip4SubnetAddress("1.2.3.4/24");
             ip4Module.registerInterface(address, eth1);
-            ip4Module.getRoutingModule().addRoute(Util::Network::Ip4::Ip4Route(address, "eth1"));
-            ip4Module.getRoutingModule().addRoute(Util::Network::Ip4::Ip4Route(Util::Network::Ip4::Ip4SubnetAddress("1.2.3.4/0"), Util::Network::Ip4::Ip4Address("1.2.3.2"), "eth1"));
+            ip4Module.getRoutingModule().addRoute(
+                    Util::Network::Ip4::Ip4Route(address, "eth1"));
+            ip4Module.getRoutingModule().addRoute(
+                    Util::Network::Ip4::Ip4Route(
+                            Util::Network::Ip4::Ip4SubnetAddress("1.2.3.4/0"),
+                            Util::Network::Ip4::Ip4Address("1.2.3.2"),
+                            "eth1"));
         }
     }
 }
