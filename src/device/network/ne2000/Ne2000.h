@@ -77,100 +77,88 @@ public:
 
     private:
 
-    uint8_t COMMAND = 0x00;             /* R|W COMMAND used for P0, P1, P2 */
-    uint8_t ISR     = 0x07;             /* R|W Interrupt Status Register P0 */
-    uint8_t BNRY    = 0x03;             /* R|W Boundary Pointer  P0 */
+
 
     /*
          * Accessed during NIC operations
          * Gets called if:
          *  PS0 = 0, PS1 = 0
          */
-        enum Page0write : uint8_t {
-            PSTART = 0x01,      /* W Page Start Register  */
-            PSTOP  = 0x02,      /* W Page Stop Register  */
-            TPSR   = 0x04,      /* W Transmit Page Start Address  */
-            TBCR0  = 0x05,      /* W Transmit Byte Count Register 0  */
-            TBCR1  = 0x06,      /* W Transmit Byte Count Register 1  */
-            RSAR0  = 0x08,      /* W Remote Start Address Register 0 */
-            RSAR1  = 0x09,      /* W Remote Start Address Register 1 */
-            RBCR0  = 0x0A,      /* W Remote Byte Count Register 0 */
-            RBCR1  = 0x0B,      /* W Remote Byte Count Register 1 */
-            RCR    = 0x0C,      /* W Receive Configuration Register */
-            TCR    = 0x0D,      /* W Transmit Configuration Register*/
-            DCR    = 0x0E,      /* W Data Configuration Register */
-            IMR    = 0x0F       /* W Interrupt Mask Register */
-        };
+        enum PageRegisters : uint8_t {
+            COMMAND   = 0x00,      /* R|W COMMAND used for P0, P1, P2 */
+            /* P0 Write */
+            P0_PSTART = 0x01,      /* W Page Start Register  */
+            P0_PSTOP  = 0x02,      /* W Page Stop Register  */
+            P0_BNRY   = 0x03,      /* R|W Boundary Pointer  P0 */
+            P0_TPSR   = 0x04,      /* W Transmit Page Start Address  */
+            P0_TBCR0  = 0x05,      /* W Transmit Byte Count Register 0  */
+            P0_TBCR1  = 0x06,      /* W Transmit Byte Count Register 1  */
+            P0_ISR    = 0x07,      /* R|W Interrupt Status Register P0 */
+            P0_RSAR0  = 0x08,      /* W Remote Start Address Register 0 */
+            P0_RSAR1  = 0x09,      /* W Remote Start Address Register 1 */
+            P0_RBCR0  = 0x0A,      /* W Remote Byte Count Register 0 */
+            P0_RBCR1  = 0x0B,      /* W Remote Byte Count Register 1 */
+            P0_RCR    = 0x0C,      /* W Receive Configuration Register */
+            P0_TCR    = 0x0D,      /* W Transmit Configuration Register*/
+            P0_DCR    = 0x0E,      /* W Data Configuration Register */
+            P0_IMR    = 0x0F,      /* W Interrupt Mask Register */
 
-        enum Page0Read : uint8_t {
-            CLDA0  = 0x01,      /* R Current Local DMA Address 0  */
-            CLDA1  = 0x02,      /* R Current Local DMA Addresse 1  */
-            TSR    = 0x04,      /* R Transmit Status Register  */
-            NCR    = 0x05,      /* R Number of Collisions Register  */
-            FIFO   = 0x06,      /* R FIFO */
-            CRDA0  = 0x08,      /* R Current Remote DMA Address 0 */
-            CRDA1  = 0x09,      /* R Current Remote DMA Address 1 */
+            /* P0 Read*/
+            P0_CLDA0  = 0x01,      /* R Current Local DMA Address 0  */
+            P0_CLDA1  = 0x02,      /* R Current Local DMA Addresse 1  */
+            P0_TSR    = 0x04,      /* R Transmit Status Register  */
+            P0_NCR    = 0x05,      /* R Number of Collisions Register  */
+            P0_FIFO   = 0x06,      /* R FIFO */
+            P0_CRDA0  = 0x08,      /* R Current Remote DMA Address 0 */
+            P0_CRDA1  = 0x09,      /* R Current Remote DMA Address 1 */
             /* R 0x0A and 0x0B are reserved */
-            RSR    = 0x0C,      /* R Receive Status Register */
-            CNTR0  = 0x0D,      /* R Tally Counter 0 (Frame Alignment Errors) */
-            CNTR1  = 0x0E,      /* R Tally Counter 1 (CRC Errors) */
-            CNTR2  = 0x0F       /* R Tally Counter 2 (Missed Packet Error) */
-        };
+            P0_RSR    = 0x0C,      /* R Receive Status Register */
+            P0_CNTR0  = 0x0D,      /* R Tally Counter 0 (Frame Alignment Errors) */
+            P0_CNTR1  = 0x0E,      /* R Tally Counter 1 (CRC Errors) */
+            P0_CNTR2  = 0x0F,      /* R Tally Counter 2 (Missed Packet Error) */
 
-        /*
-         * Primarily used for Initialization
-         * Gets called if:
-         *  PS0 = 1, PS1 = 0
-         */
-        enum Page1 : uint8_t {
-            PAR0   = 0x01,      /* R|W Physical Address Register 0 */
-            PAR1   = 0x02,      /* R|W Physical Address Register 1 */
-            PAR2   = 0x03,      /* R|W Physical Address Register 2 */
-            PAR3   = 0x04,      /* R|W Physical Address Register 3 */
-            PAR4   = 0x05,      /* R|W Physical Address Register 4 */
-            PAR5   = 0x06,      /* R|W Physical Address Register 5 */
-            CURR   = 0x07,      /* R|W Current Page Register */
-            MAR0   = 0x08,      /* R|W Multicast Address Register 0 */
-            MAR1   = 0x09,      /* R|W Multicast Address Register 1 */
-            MAR2   = 0x0A,      /* R|W Multicast Address Register 2 */
-            MAR3   = 0x0B,      /* R|W Multicast Address Register 3 */
-            MAR4   = 0x0C,      /* R|W Multicast Address Register 4 */
-            MAR5   = 0x0D,      /* R|W Multicast Address Register 5 */
-            MAR6   = 0x0E,      /* R|W Multicast Address Register 6 */
-            MAR7   = 0x0F       /* R|W Multicast Address Register 7 */
-        };
+            /* P1 */
+            P1_PAR0   = 0x01,      /* R|W Physical Address Register 0 */
+            P1_PAR1   = 0x02,      /* R|W Physical Address Register 1 */
+            P1_PAR2   = 0x03,      /* R|W Physical Address Register 2 */
+            P1_PAR3   = 0x04,      /* R|W Physical Address Register 3 */
+            P1_PAR4   = 0x05,      /* R|W Physical Address Register 4 */
+            P1_PAR5   = 0x06,      /* R|W Physical Address Register 5 */
+            P1_CURR   = 0x07,      /* R|W Current Page Register */
+            P1_MAR0   = 0x08,      /* R|W Multicast Address Register 0 */
+            P1_MAR1   = 0x09,      /* R|W Multicast Address Register 1 */
+            P1_MAR2   = 0x0A,      /* R|W Multicast Address Register 2 */
+            P1_MAR3   = 0x0B,      /* R|W Multicast Address Register 3 */
+            P1_MAR4   = 0x0C,      /* R|W Multicast Address Register 4 */
+            P1_MAR5   = 0x0D,      /* R|W Multicast Address Register 5 */
+            P1_MAR6   = 0x0E,      /* R|W Multicast Address Register 6 */
+            P1_MAR7   = 0x0F,      /* R|W Multicast Address Register 7 */
 
-        /*
-         * Register page2
-         * Gets called if:
-         *  PS0 = 0, PS1 = 1
-         * ToDo document P2
-         */
-        enum Page2Write : uint8_t {
-            P2_CLDA0    = 0x01,     /* W Current Local DMA Address 0 */
-            P2_CLDA1    = 0x02,     /* W Current Local DMA Address 1 */
-            RNPP        = 0x03,     /* R|W Remote Next Packet Pointer */
+            /* P2 Write */
+            P2_CLDA0  = 0x01,      /* W Current Local DMA Address 0 */
+            P2_CLDA1  = 0x02,      /* W Current Local DMA Address 1 */
+            P2_RNPP   = 0x03,      /* R|W Remote Next Packet Pointer */
             /* 0x04 W Reserved */
-            LNPP        = 0x05,     /* R|W Local Next Packet Pointer */
-            UPPER       = 0x06,     /* R|W Address Counter (Upper) */
-            LOWER       = 0x07,     /* R|W Address Counter (Lower) */
+            P2_LNPP   = 0x05,      /* R|W Local Next Packet Pointer */
+            P2_UPPER  = 0x06,      /* R|W Address Counter (Upper) */
+            P2_LOWER  = 0x07,      /* R|W Address Counter (Lower) */
             /* 8 - B Reserved */
             /* W C - F Reserved */
-        };
 
-        enum Page2Read : uint8_t {
+            /* P2 Read */
             P2_PSTART  = 0x01,     /* R Page Start Register */
             P2_PSTOP   = 0x02,     /* R Page Stop Register */
             P2_TPSR    = 0x04,     /* R Transmit Page Start Address */
             P2_RCR     = 0x0C,     /* R Receive Configuration Register */
             P2_TCR     = 0x0D,     /* R Transmit Configuration Register */
             P2_DCR     = 0x0E,     /* R Data Configuration Register */
-            P2_IMR     = 0x0F,     /* R Interrupt Mask Register */
+            P2_IMR     = 0x0F      /* R Interrupt Mask Register */
         };
+
         /*
          * Command Register
          */
-        enum Command : uint8_t{
+        enum CommandRegister : uint8_t{
             STP = 0x01,          /* STOP */
             STA = 0x02,          /* START */
             TXP = 0x04,          /* Transmit Packet */
