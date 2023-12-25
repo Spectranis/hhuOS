@@ -28,131 +28,140 @@ namespace Kernel {
 }  // namespace Kernel
 
 namespace Device::Network {
-    Kernel::Logger Ne2000::log = Kernel::Logger::get("Ne2000");
+Kernel::Logger Ne2000::log = Kernel::Logger::get("Ne2000");
 
 /**
  * Initialize Ne2000
  */
 Ne2000::Ne2000(const PciDevice &pciDevice) : pciDevice(pciDevice) {
-    uint16_t command = pciDevice.readWord( Pci::COMMAND );
-    uint16_t buffer[32];
-    command |= Pci::BUS_MASTER | Pci::IO_SPACE;
-    pciDevice.writeWord(Pci::COMMAND, command);
+  uint16_t command = pciDevice.readWord(Pci::COMMAND);
+  uint8_t buffer[32];
+  command |= Pci::BUS_MASTER | Pci::IO_SPACE;
+  pciDevice.writeWord(Pci::COMMAND, command);
 
-    uint16_t ioBaseAddress = pciDevice.readDoubleWord(Pci::BASE_ADDRESS_0) & ~0x3;
-    baseRegister = IoPort(ioBaseAddress);
+  uint16_t ioBaseAddress = pciDevice.readDoubleWord(Pci::BASE_ADDRESS_0) & ~0x3;
+  baseRegister = IoPort(ioBaseAddress);
 
-    log.info("Start device");
-    baseRegister.writeByte(COMMAND, STA);
+  log.info("Start NIC");
+  baseRegister.writeByte(COMMAND, STA);
 
-    /**  1) CR Register = 21h */
-    log.info("Reset device");
-    baseRegister.writeByte(COMMAND, RD2 | STP);
+  /**  1) CR Register = 21h */
+  log.debug("Reset device");
+  baseRegister.writeByte(COMMAND, RD2 | STP);
 
-    /**  2) Initialize DCR */
-    log.info("Init DCR");
-    /** Initialize Data Configuration register */
-    baseRegister.writeByte(P0_DCR, DCR_LS | DCR_FT1 | DCR_AR);
+  /**  2) Initialize DCR */
+  log.debug("Init DCR");
+  /** Initialize Data Configuration register */
+  baseRegister.writeByte(P0_DCR, DCR_LS | DCR_FT1 | DCR_AR);
 
-    /**  3) Clear RBCR0, RBCR1 */
-    /** Clear Count Register 0 and 1 */
-    log.info("Clear RBCR0/1");
-    baseRegister.writeByte(P0_RBCR0, 0x00);
-    baseRegister.writeByte(P0_RBCR1, 0x00);
+  /**  3) Clear RBCR0, RBCR1 */
+  /** Clear Count Register 0 and 1 */
+  log.debug("Clear RBCR0/1");
+  baseRegister.writeByte(P0_RBCR0, 0x00);
+  baseRegister.writeByte(P0_RBCR1, 0x00);
 
-    /**  4) Initialize RCR */
-    /** Receive Accept RUNT Packets, Broadcast and Multicast */
-    log.info("Init RCR");
-    baseRegister.writeByte(P0_RCR, RCR_AR | RCR_AB | RCR_AM);
+  /**  4) Initialize RCR */
+  /** Receive Accept RUNT Packets, Broadcast and Multicast */
+  log.debug("Init RCR");
+  baseRegister.writeByte(P0_RCR, RCR_AR | RCR_AB | RCR_AM);
 
-    /**  5) Set NIC to LOOPBACK -> TCR = 02/04h */
-    log.info("Set NIC to Loopback");
-    baseRegister.writeByte(P0_TCR, TCR_LB0);
+  /**  5) Set NIC to LOOPBACK -> TCR = 02/04h */
+  log.debug("Set NIC to Loopback");
+  baseRegister.writeByte(P0_TCR, TCR_LB0);
 
-    /**  6) Initialize Receive Buffer Ring ( BNDRY, PSTART, PSTOP ) */
-    log.info("Init Receive Buffer Ring");
-    /** ToDo: Fix Buffer Init */
-    /** https://github.com/torokernel/torokernel/blob/7d6df4c40fa4cc85febd5fd5799404592ffdff53/rtl/drivers/Ne2000.pas
+  /**  6) Initialize Receive Buffer Ring ( BNDRY, PSTART, PSTOP ) */
+  log.debug("Init Receive Buffer Ring");
+  /** ToDo: Fix Buffer Init */
+  /** https://github.com/torokernel/torokernel/blob/7d6df4c40fa4cc85febd5fd5799404592ffdff53/rtl/drivers/Ne2000.pas
      * Line 200 ff */
-    baseRegister.writeByte(P0_TPSR, 0x40);
-    baseRegister.writeByte(P0_PSTART, 0x46);
-    /** At Initialization PSR is written into CPR and BPR*/
-    baseRegister.writeByte(P0_BNRY, 0x46);
-    baseRegister.writeByte(P0_PSTOP, 0x60);
+  baseRegister.writeByte(P0_TPSR, 0x40);
+  baseRegister.writeByte(P0_PSTART, 0x46);
+  /** At Initialization PSR is written into CPR and BPR*/
+  baseRegister.writeByte(P0_BNRY, 0x46);
+  baseRegister.writeByte(P0_PSTOP, 0x60);
 
-    /**  7) Clear ISR */
-    log.info("Clear ISR");
-    /** Set Interrupt Status Register to 0xFF */
-    baseRegister.writeByte(P0_ISR, 0xFF);
+  /**  7) Clear ISR */
+  log.debug("Clear ISR");
+  /** Set Interrupt Status Register to 0xFF */
+  baseRegister.writeByte(P0_ISR, 0xFF);
 
-    /**  8) Initialize IMR */
-    log.info("Init IMR");
-    baseRegister.writeByte(P0_IMR, IMR_PRXE | IMR_PTXE | IMR_RXEE | IMR_TXEE | IMR_OVWE);
+  /**  8) Initialize IMR */
+  log.debug("Init IMR");
+  baseRegister.writeByte(P0_IMR,
+                         IMR_PRXE | IMR_PTXE | IMR_RXEE | IMR_TXEE | IMR_OVWE);
 
-    /**  9) Switch to P1 -> CR = 61h */
-    log.info("Switch to P1");
-    baseRegister.writeByte(COMMAND, 0x61);
+  /**  9) Switch to P1 -> CR = 61h */
+  log.debug("Switch to P1");
+  baseRegister.writeByte(COMMAND, 0x61);
 
-    /**  9) i) Initialize Physical Address Register: PAR0-PAR5 */
-    /** Read 32 Bit from IOPort */
-    log.debug("Get proc");
-    for (int i = 0; i < 32; i++){
-        buffer[i] = baseRegister.readByte(0x10);
-    }
-    log.info("MAC:%02x:%02x:%02x:%02x:%02x:%02x",
-              buffer[0],
-              buffer[2],
-              buffer[4],
-              buffer[6],
-              buffer[8],
-              buffer[10]);
+  /**  9) i) Initialize Physical Address Register: PAR0-PAR5 */
+  /** Read 32 Bit from IOPort */
+  log.debug("Read I/O and get MAC Address");
+  for (int i = 0; i < 32; i++) {
+    buffer[i] = baseRegister.readByte(0x10);
+  }
+  log.debug("MAC:%02x:%02x:%02x:%02x:%02x:%02x",
+            buffer[0],
+            buffer[2],
+            buffer[4],
+            buffer[6],
+            buffer[8],
+            buffer[10]);
 
-    /** Write Mac Address into PAR0-PAR5 */
-    baseRegister.writeByte(P1_PAR0, buffer[0]);
-    baseRegister.writeByte(P1_PAR1, buffer[2]);
-    baseRegister.writeByte(P1_PAR2, buffer[4]);
-    baseRegister.writeByte(P1_PAR3, buffer[6]);
-    baseRegister.writeByte(P1_PAR4, buffer[8]);
-    baseRegister.writeByte(P1_PAR5, buffer[10]);
+  /** Write Mac Address into PAR0-PAR5 */
+  baseRegister.writeByte(P1_PAR0, buffer[0]);
+  baseRegister.writeByte(P1_PAR1, buffer[2]);
+  baseRegister.writeByte(P1_PAR2, buffer[4]);
+  baseRegister.writeByte(P1_PAR3, buffer[6]);
+  baseRegister.writeByte(P1_PAR4, buffer[8]);
+  baseRegister.writeByte(P1_PAR5, buffer[10]);
 
-    /**  9) ii) Initialize Multicast Address Register: MAR0-MAR7 with 0xFF
+  /**  9) ii) Initialize Multicast Address Register: MAR0-MAR7 with 0xFF
      * https://github.com/torokernel/torokernel/blob/7d6df4c40fa4cc85febd5fd5799404592ffdff53/rtl/drivers/Ne2000.pas
      * line 213 ff
      * */
-    log.info("Init Multicast Address Register");
-    baseRegister.writeByte(P1_MAR0, 0xFF);
-    baseRegister.writeByte(P1_MAR1, 0xFF);
-    baseRegister.writeByte(P1_MAR2, 0xFF);
-    baseRegister.writeByte(P1_MAR3, 0xFF);
-    baseRegister.writeByte(P1_MAR4, 0xFF);
-    baseRegister.writeByte(P1_MAR5, 0xFF);
-    baseRegister.writeByte(P1_MAR6, 0xFF);
-    baseRegister.writeByte(P1_MAR7, 0xFF);
+  log.debug("Init Multicast Address Register");
+  baseRegister.writeByte(P1_MAR0, 0xFF);
+  baseRegister.writeByte(P1_MAR1, 0xFF);
+  baseRegister.writeByte(P1_MAR2, 0xFF);
+  baseRegister.writeByte(P1_MAR3, 0xFF);
+  baseRegister.writeByte(P1_MAR4, 0xFF);
+  baseRegister.writeByte(P1_MAR5, 0xFF);
+  baseRegister.writeByte(P1_MAR6, 0xFF);
+  baseRegister.writeByte(P1_MAR7, 0xFF);
 
-    /**  9) iii) Initialize Current Pointer: CURR
+  /**  9) iii) Initialize Current Pointer: CURR
      * 10.0 Internal Registers (P28) CURR init with same value as PSTART */
-    log.info("Init CURR");
-    int8_t nextPackage = baseRegister.readByte(P0_PSTART)+0x1;
-    baseRegister.writeByte(P1_CURR, nextPackage);
+  log.debug("Init CURR");
+  int8_t nextPackage = baseRegister.readByte(P0_PSTART) + 0x1;
+  baseRegister.writeByte(P1_CURR, nextPackage);
 
-    log.info("CurrentPageRegister: %02x", baseRegister.readByte(P1_CURR));
+  log.debug("CurrentPageRegister: %02x", baseRegister.readByte(P1_CURR));
 
-    /** 10) Put NIC in START Mode -> CR = 22H */
-    log.info("Start NIC");
-    baseRegister.writeByte(COMMAND, RD2 | STA);
+  /** 10) Put NIC in START Mode -> CR = 22H */
+  log.debug("Start NIC");
+  baseRegister.writeByte(COMMAND, RD2 | STA);
 
-    /** 11) Initialize TCR for intended value */
-    log.info("Init TC");
-    baseRegister.writeByte(P0_TCR, 0x00);
+  /** 11) Initialize TCR for intended value */
+  log.debug("Init TC");
+  baseRegister.writeByte(P0_TCR, 0x00);
 
-    log.info("NIC initialized");
-
-    //Util::Async::Thread::sleep(Util::Time::Timestamp::ofMilliseconds(100000000));
+  log.info("NIC initialized");
 }
 
-void Ne2000::resetNe200() {
+/**
+ * Needed to reset the Ne2000 before every receive/send call
+ */
+void Ne2000::resetNe2000() {
+  // https://github.com/gammy/dosbox_ne2000/blob/master/src/hardware/ne2000.cpp
 
-  baseRegister.writeByte(COMMAND, PS0 | STP | RD2);
+  baseRegister.writeByte(COMMAND, 0x00);
+  baseRegister.writeByte(P0_ISR, 0x00);
+  baseRegister.writeByte(P0_IMR, 0x00);
+  baseRegister.writeByte(P0_DCR, 0x00);
+  baseRegister.writeByte(P0_TCR, 0x00);
+  baseRegister.writeByte(P0_TSR, 0x00);
+  baseRegister.writeByte(P0_RSR, 0x00);
 
   baseRegister.writeByte(COMMAND, PS1 | STP | RD2);
 
@@ -162,291 +171,241 @@ void Ne2000::resetNe200() {
  * Initialize cards that are supported by this driver
  */
 void Ne2000::initializeAvailableCards() {
-    auto &networkService = Kernel::System::getService<Kernel::NetworkService>();
-    auto devices = Pci::search(VENDOR_ID, DEVICE_ID);
+  auto &networkService = Kernel::System::getService<Kernel::NetworkService>();
+  auto devices = Pci::search(VENDOR_ID, DEVICE_ID);
 
-    for (const auto &device:devices){
-        auto *ne2000 = new Ne2000(device);
-        ne2000->plugin();
-        networkService.registerNetworkDevice(ne2000, "eth");
-    }
+  for (const auto &device : devices) {
+    auto *ne2000 = new Ne2000(device);
+    ne2000->plugin();
+    networkService.registerNetworkDevice(ne2000, "eth");
+  }
 }
 
 /**
  * Read MacAddress form PAR0 - PAR5 registers
  */
 Util::Network::MacAddress Ne2000::getMacAddress() const {
-    uint8_t buffer[6];
 
-    /** Go to P2, STOP and block Remote DMA */
-    baseRegister.writeByte(COMMAND, RD2 | PS0 | STP);
-    /** Read MAC from PAR0 - PAR5 */
-    buffer[0] = baseRegister.readByte(P1_PAR0);
-    buffer[1] = baseRegister.readByte(P1_PAR1);
-    buffer[2] = baseRegister.readByte(P1_PAR2);
-    buffer[3] = baseRegister.readByte(P1_PAR3);
-    buffer[4] = baseRegister.readByte(P1_PAR4);
-    buffer[5] = baseRegister.readByte(P1_PAR5);
+  /** Go to P2, STOP and block Remote DMA */
+  baseRegister.writeByte(COMMAND, RD2 | PS0 | STP);
+  /** Read MAC from PAR0 - PAR5 */
+  uint8_t buffer[6] = {
+      baseRegister.readByte(P1_PAR0),
+      baseRegister.readByte(P1_PAR1),
+      baseRegister.readByte(P1_PAR2),
+      baseRegister.readByte(P1_PAR3),
+      baseRegister.readByte(P1_PAR4),
+      baseRegister.readByte(P1_PAR5),
+  };
 
-    /** COMMAND: Start and complete Remote DMA */
-    baseRegister.writeByte(COMMAND, STA | RD2);
 
-    /** Receive Config Accept Broadcast and Accept Multicast */
-    baseRegister.writeByte(P0_RCR, RCR_AB | RCR_AM);
+  /** COMMAND: Start and complete Remote DMA */
+  baseRegister.writeByte(COMMAND, STA | RD2);
 
-    return Util::Network::MacAddress(buffer);
+  /** Receive Config Accept Broadcast and Accept Multicast */
+  baseRegister.writeByte(P0_RCR, RCR_AB | RCR_AM);
+  return Util::Network::MacAddress(buffer);
 }
 
 /**
- * ToDo Resolve Interrupt trigger
+ * ToDo Handle Interrupt trigger
  */
 void Ne2000::trigger(const Kernel::InterruptFrame &frame) {
-        auto interrupt = baseRegister.readWord(P0_ISR);
-        /** Disable Interrupt and Save PC Registers */
-        /** Read ISR Status */
-        /** Packet Reception? */
-        /** Then
-         * Reset PRX Bit in ISR
-         * DMA Packet from Local Mem to PC
-         * Inform High Level Software of Received Packet
-         * Is Receive Buffer Ring Empty : return
-         * Else Repeat
-         * */
-        /** Packet Transmission? */
-        /** Then
-         * Reset PTX Bit in ISR
-         * Read TSR
-         * Inform High Level Software of Good/Bad Transmission
-         * Is queue Empty: return
-         * Transmit Next Packet in Queue
-         * Update Queue Pointer
-         * */
-        /** ELSE
-         * SEND EOI to 8259
-         * Enable Interrupt
-         * Return
-         * */
+  /** Disable Interrupts */
+  baseRegister.writeByte(P0_IMR, 0x00);
 
-        if(interrupt & ISR_PRX){
-          while (baseRegister.readByte(P0_ISR) & ISR_PRX){
-            /** Reset PRX Bit */
-            baseRegister.writeByte(P0_ISR, ISR_PRX);
-            /** Read Packet */
-            //processReceivedPacket();
-          }
-        }
-
-
-        /**
-         * Clear Interrupt by writing a 1 into the corresponding bit
-         */
-        // Handle Packet received
-        if(interrupt & ISR_PRX){
-            //ToDo: Transfer Packet into ReceiveBuffer
-            /*
-             * 1. Reset PRX Bit in ISR
-             * 2. DMA Packet from Local Mem to PC
-             * 3. Inform High level software of received packet
-             * 4. Is Ringbuffer empty?
-             *      yes: return
-             *      no: jump to 1.
-             */
-        }
-        // Handle Packet Transmitted
-        else if (interrupt & ISR_PTX){
-            // ToDo: Delete Packet from SendBuffer
-            /*
-             * Reset PTX Bit in ISR
-             * Read Transmit Status Register
-             * Inform High level software of Good/Bad Transmission
-             * Is Transmission Queue Empty?
-             *  No transmit next packet in queue
-             *  Update Queue Pointers
-             */
-        }
-        //Handle Receive Error
-        else if (interrupt & ISR_RXE){
-            // ToDo: Handle Receive Error
-        }
-        //Handle Transmit Error
-        else if(interrupt & ISR_TXE){
-            // ToDo: Handle Transmit Error
-        }
-        //Handle Overwrite Error
-        else if(interrupt & ISR_OVW){
-            // ToDo: Handle Overwrite Error
-        }
-        //Handle Counter Overflow
-        else if(interrupt & ISR_CNT){
-            //ToDo: Handle Counter Overflow
-        }
-    }
-
-/**
- * ToDo
- */
-void Ne2000::handleBufferOverflow(){
-        return;
-    }
-
-/**
- * ToDo
- */
-void Ne2000::handleIncomingPacket(const uint8_t *packet, uint32_t length) {
-    /**
-     * Buffer Ring Structure ->
-     *   Buffer page fixed length 256 Bytes
-     *   Consists of N pages
-     * Location is in PageStart (PSTART) and PageStop (PSTOP) register
-     * Assignment is handled in the NIC
-     *   - provides linking of buffer pages for long packets
-     *   - recovery of buffers when a packet is rejected
-     *   - recirculation of buffer pages that have been read by the host
-     * Handling:
-     *   DMA treats list of buffers as logical ring, whenever the DMA address reaches the Page Stip Address,
-     *   the DMA is reset to Page Start Address
-     *
-     * PacketReception:
-     *   begins storing packet at the location pointed by current page register
-     *   save offset of 4 bytes in the first buffer to allow room for storing receive status for the packet
-     * PacketLinking:
-     *   if packet length > 256 - 4 bytes -> DMA performs a forward link to the next buffer to store the remainder of the packet
-     *   Case maximal lenght packet: 6 contiguous Pages will be linked
-     *
-     *   Steps before linking 2 comparisons:
-     *   1) test equality between DMA address of the next buffer and the contents of the PageStopRegister
-     *      if equal: buffer management logic will restore DMA to the first buffer in the Receive Buffer Ring
-     *   2) Test equality between the DMA address of the next buffer address and the contents of the Boundary Pointer Register
-     *     if equal: abort reception
-     *   else: if Buffer address does not match Boundary Pointer || PageStopAddress the link to the next buffer is performed
-     *
-     *   Linking Buffers:
-     *   Check: address equality to PSTOP and BoundaryPointer
-     *     if not equal: allow DMA to use next buffer
-     *
-     */
-
-    /**
-     * 1) Read and store value of TXP in the CR
-     * 2) Issue STOP Command to the NIC -> Set STP ind CR -> Write 21H to CR will stop NIC
-     * 3) Wait for at least 1.6ms
-     * 4) Clear NIC RBCR0 and RBCR1
-     * 5) Read stored value of TXP (see 1)
-     * 6)
-     */
-
-
-        return;
-    }
-
-/**
- * ToDo
- */
-void Ne2000::handleOutgoingPacket(const uint8_t *packet, uint32_t length) {
-        if(1 == 2){
-
-        }
-
-        /**
-         * Ready to Transmit?
-         *  No: Queue packet and return
-         *  Yes:
-         *      DMA Packet from PC to Local mem
-         *      Transmit Packet
-         *      return
-         */
-
-        /**
-         * ISR Services the
-         */
-
-        return;
-    }
-
-void Ne2000::readPacket(){
-
-  /** Go To P1, Start and Block Remote DMA */
-  baseRegister.writeByte(COMMAND, STA | PS0 | RD2);
-  auto current = baseRegister.readByte(P1_CURR);
-  baseRegister.writeByte(COMMAND, STA | RD2);
-
-  /** while
-   * https://github.com/torokernel/torokernel/blob/7d6df4c40fa4cc85febd5fd5799404592ffdff53/rtl/drivers/Ne2000.pas
-   * Line 243 ff
-   * */
-  baseRegister.writeByte(P0_RBCR0, 4);
-  baseRegister.writeByte(P0_RBCR1, 0);
-  baseRegister.writeByte(P0_RSAR0, 0);
-  baseRegister.writeByte(P0_RBCR1, 0x00);
-
-  baseRegister.writeByte(COMMAND, STA | RD0);
-  /** Read from I/O Port */
-  auto rsr = baseRegister.readByte(0x10);
-  auto next = baseRegister.readByte(0x10);
-  auto packet_length = baseRegister.readByte(0x10);
-  packet_length = packet_length + baseRegister.readByte(0x10) << 8;
-
-  baseRegister.writeByte(P0_ISR, ISR_RDC);
-  if ((rsr | 31) == 1 && packet_length <= 1532){
-    /** && next >= PSTART && next <= PSTOP */
-    //auto data = int[packet_length];
-    for (int i = 0; i < packet_length; i ++){
-      //data[i] = baseRegister.readByte(0x10);
-    }
+  auto interrupt = baseRegister.readByte(P0_ISR);
+  log.info("Interrupt Trigger %02x", interrupt);
+  /** Packet Received Interrupt */
+  if (interrupt & ISR_PRX) {
+    log.info("Process Received Packet");
+    processReceivedPackets();
+    /** Clear Interrupt */
+    baseRegister.writeByte(P0_ISR, ISR_PRX);
+  }
+  /** ToDo Packet Transmit Interrupt */
+  if (interrupt & ISR_PTX) {
+    baseRegister.writeByte(P0_ISR, ISR_RDC);
   }
 
 
+  /** Send EOI (EndOfInterrupt) and enable Interrupt*/
+  baseRegister.writeByte(P0_IMR, IMR_PRXE | IMR_PTXE | IMR_RXEE | IMR_TXEE | IMR_OVWE | IMR_CNTE | IMR_RDCE);
 }
+
 /**
- * ToDo
+ * Called by Interrupt
+ * https://github.com/torokernel/torokernel/blob/7d6df4c40fa4cc85febd5fd5799404592ffdff53/rtl/drivers/Ne2000.pas
+ * Line 243 ff
+ *
  */
-void Ne2000::sendPacket(const uint8_t *packet, uint32_t length) {
-    log.debug("Prepare Packet Send: Set CR to 0x22");
-    baseRegister.writeByte(COMMAND,  RD2 | STA);
+void Ne2000::processReceivedPackets() {
 
-    log.debug("Write PacketSize into RBCR0/1");
-    /** length & 0xFF write Byte 1+2 into RBCR0 */
-    baseRegister.writeByte(P0_RBCR0, length & 0xFF);
-    /** Bitshift 8 to the right -> write Byte 3+4 into RBCR1 */
-    baseRegister.writeByte(P0_RBCR1, length >> 8);
+  /** Go To P0, Start and Block Remote DMA -> 0x22 */
+  baseRegister.writeByte(COMMAND, 0x22);
+  auto current = baseRegister.readByte(P1_CURR);
+  baseRegister.writeByte(COMMAND, 0x22);
 
+  log.info("Process Packet");
+  while (current not_eq nextPacket) {
+    log.info("While entered");
+    baseRegister.writeByte(P0_RBCR0, 4);
+    baseRegister.writeByte(P0_RBCR1, 0);
+    baseRegister.writeByte(P0_RSAR0, 0);
+    baseRegister.writeByte(P0_RBCR1, 0x00);
 
-    log.debug("Clear remote DMA complete bit");
+    baseRegister.writeByte(COMMAND, STA | RD0);
+    /** Read from I/O Port */
+    auto rsr = baseRegister.readByte(0x10);
+    auto next = baseRegister.readByte(0x10);
+    uint32_t packet_length = baseRegister.readByte(0x10);
+    packet_length = packet_length + (baseRegister.readByte(0x10) << 8);
+
     baseRegister.writeByte(P0_ISR, ISR_RDC);
+    if (((rsr & 31) == 1) && (next >= PSTART) && (next <= PSTOP) &&
+        (packet_length <= 1522)) {
+      uint8_t buffer[(packet_length) * sizeof(uint8_t)];
 
-    log.debug("Load RSAR0/1 with low and target page number");
-    baseRegister.writeByte(P0_RSAR0, 0x00);
-    baseRegister.writeByte(P0_RSAR1, 0x40); //Transmitbuffer
+      baseRegister.writeByte(P0_RBCR0, packet_length);
+      baseRegister.writeByte(P0_RBCR1, packet_length << 8);
 
+      baseRegister.writeByte(P0_RBCR0, 4);
+      baseRegister.writeByte(P0_RBCR1, nextPacket);
 
-    log.debug("Set CR to start and Remote write DMA");
-    baseRegister.writeByte(COMMAND, PS0 | RD1 | STA);
+      baseRegister.writeByte(COMMAND, STA | 0x0);
+      log.info("Read Packet");
+      for (int i = 0; i < packet_length; i++) {
+        buffer[i] = (baseRegister.readByte(0x10));
+      }
 
-    log.debug("Write PacketData into DataPort");
-    /** Write Packetdata to data port */
-    for(uint32_t i = 0; i < length; i++){
-        baseRegister.writeByte(0x10, packet[i]);
+      /** Packet Received */
+      baseRegister.writeByte(P0_ISR, 0x40);
+      if (next == PSTOP)
+        nextPacket = PSTART;
+      else
+        nextPacket = next;
+
+      /** Call NetworkDevice handleIncomingPacket */
+      handleIncomingPacket(buffer, packet_length);
     }
+    if (nextPacket == PSTART)
+      baseRegister.writeByte(P0_BNRY, PSTOP - 1);
+    else
+      baseRegister.writeByte(P0_BNRY, nextPacket - 1);
 
-    /**
-    baseRegister.writeByte(P0_TBCR0, length & 0xFF);
-    baseRegister.writeByte(P0_TBCR1, length >> 8);
-    baseRegister.writeByte(COMMAND, TXP | RD2 | STA);
-    */
-
-    log.debug("Poll ISR until Bit 6 remote DMA complete is set");
-    while(baseRegister.readByte(P0_ISR) != ISR_RDC ){
-        Util::Async::Thread::sleep(Util::Time::Timestamp::ofMilliseconds(1));
-    }
-    log.debug("NE2000: transmitted packet");
+    /** Start, NODMA, 40 */
+    baseRegister.writeByte(COMMAND, 0x42);
+    current = baseRegister.readByte(P1_CURR);
+    baseRegister.writeByte(COMMAND, 0x42);
+  }
+  log.info("Packets Processed");
 }
 
 /**
- * ToDo
+ * Check if TXP register equals 0
+ * -> NIC is ready to transmit
  */
-void Ne2000::plugin() {
-        auto &interruptService = Kernel::System::getService<Kernel::InterruptService>();
-        interruptService.allowHardwareInterrupt(pciDevice.getInterruptLine());
-        interruptService.assignInterrupt(static_cast<Kernel::InterruptVector>(pciDevice.getInterruptLine() + 32), *this);
+bool Ne2000::readyToTransmit() {
+  auto status = baseRegister.readByte(COMMAND);
+  log.info("Interrupt Trigger %02x", status);
+  return (status & 0x22);
+}
+
+/**
+ *
+ * @param packet
+ * @param length
+ */
+void Ne2000::handleOutgoingPacket(const uint8_t *packet, uint32_t length) {
+  /** Check if Ne2000 is rdy to transmit */
+  log.info("Call Send Packet");
+  /*while (!readyToTransmit()) {
+    Util::Async::Thread::sleep(Util::Time::Timestamp::ofMilliseconds(1));
+  }*/
+  log.info("Ready to transmit");
+
+  sendPacketToNIC(packet, length);
+
+  /*const auto &nextPck = getNextOutgoingPacket();
+  if(nextPck.length not_eq 0x00 && nextPck.buffer not_eq nullptr){
+    sendPacketToNIC(nextPck.buffer, nextPck.length);
+    freePacketBuffer(nextPck.buffer);
+  }*/
+
+}
+
+void Ne2000::sendPacketToNIC(const uint8_t *packet, uint32_t packet_length){
+  //resetNe2000();
+
+  // ToDO Check if needed (?)
+  /*
+  auto &memoryService = Kernel::System::getService<Kernel::MemoryService>();
+  auto physicalAddress = memoryService.getPhysicalAddress(const_cast<uint8_t *>(packet));
+  */
+  // ToDo read https://datasheetspdf.com/pdf-file/549767/NationalSemiconductor/DP83901A/1
+  /** Set Command Register to 0x22 */
+
+  /** Set DCR to
+
+  /** Patch read before write */
+
+  /** Send Config */
+  //baseRegister.writeByte(COMMAND, STA | RD2);
+  log.info("Write PacketSize into RBCR0/1 %u", packet_length);
+  /** Length & 0xFF write Byte 1+2 into RBCR0 */
+  baseRegister.writeByte(P0_RBCR0, packet_length & 0xFF);
+  /** Bitshift 8 to the right -> write Byte 3+4 into RBCR1 */
+  baseRegister.writeByte(P0_RBCR1, packet_length >> 8);
+
+  /*log.info("Clear remote DMA complete bit");
+    baseRegister.writeByte(P0_ISR, ISR_RDC);
+  */
+
+  log.info("Load RSAR0/1 with low and target page number");
+  baseRegister.writeByte(P0_RSAR0, 0x00);
+  log.info("SendStartAddress %u", sendStartPage);
+  baseRegister.writeByte(P0_RSAR1, sendStartPage);
+
+  log.info("Set CR to start and Remote write DMA");
+  //baseRegister.writeByte(COMMAND, RD1 | TXP | STA);
+  baseRegister.writeByte(COMMAND, RD1 | STA);
+
+  log.info("Write PacketData into DataPort");
+  /** Write Packetdata to data port */
+  for (uint32_t i = 0; i < packet_length; i++) {
+    baseRegister.writeByte(0x10, packet[i]);
+  }
+  for(uint32_t i = 3;  i < packet_length-4; i = i+4){
+    log.info("%02x %02x %02x %02x", packet[i-3], packet[i-2], packet[i-1], packet[i]);
+  }
+  /** Pad Packet if length < 64 Bytes */
+  /*if(packet_length < 64){
+    for(uint8_t i = 0; i < 64 - packet_length; i++){
+      baseRegister.writeByte(0x10, 0x00);
     }
+  }*/
+  baseRegister.writeByte(P0_TPSR, 0x04);
+  baseRegister.writeByte(P0_TBCR0, packet_length & 0xFF);
+  baseRegister.writeByte(P0_TBCR1, packet_length >> 8);
+
+  baseRegister.writeByte(COMMAND, RD2 | STA | TXP);
+
+  log.info("Poll ISR until Bit 6 remote DMA complete is set");
+  while ((baseRegister.readByte(P0_ISR) & ISR_RDC) == 0) {
+    Util::Async::Thread::sleep(Util::Time::Timestamp::ofMilliseconds(1));
+  }
+
+  /** Handle and accept occurring interrupt */
+  //baseRegister.writeByte(P0_ISR, ISR_RDC);
+
+  /** Don't do Send Packet  -> crashes system */
+  //baseRegister.writeByte(COMMAND, STA | RD2);
+  log.info("Transmitted packet");
+}
+
+void Ne2000::plugin() {
+  auto &interruptService = Kernel::System::getService<Kernel::InterruptService>();
+  interruptService.allowHardwareInterrupt(pciDevice.getInterruptLine());
+  interruptService.assignInterrupt(static_cast<Kernel::InterruptVector>(pciDevice.getInterruptLine() + 32), *this);
+}
 }

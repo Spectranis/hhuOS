@@ -95,10 +95,9 @@ protected:
     void handleIncomingPacket(const uint8_t *packet, uint32_t length);
 
     void freeLastSendBuffer();
+    void freePacketBuffer(void *buffer);
 
 private:
-
-    void freePacketBuffer(void *buffer);
 
     Util::String identifier;
 

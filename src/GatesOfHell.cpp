@@ -491,20 +491,15 @@ void GatesOfHell::initializeNetwork() {
      * ToDo: initialize Ne2000 card
      */
     Device::Network::Ne2000::initializeAvailableCards();
-    if(networkService.isNetworkDeviceRegistered("eth1")){
-        auto &eth1 = networkService.getNetworkDevice("eth1");
+    if(networkService.isNetworkDeviceRegistered("eth0")){
+        auto &eth1 = networkService.getNetworkDevice("eth0");
         auto &ip4Module = networkService.getNetworkStack().getIp4Module();
 
         if(Device::FirmwareConfiguration::isAvailable()){
-            auto address = Util::Network::Ip4::Ip4SubnetAddress("1.2.3.4/24");
+            auto address = Util::Network::Ip4::Ip4SubnetAddress("10.0.2.15/24");
             ip4Module.registerInterface(address, eth1);
-            ip4Module.getRoutingModule().addRoute(
-                    Util::Network::Ip4::Ip4Route(address, "eth1"));
-            ip4Module.getRoutingModule().addRoute(
-                    Util::Network::Ip4::Ip4Route(
-                            Util::Network::Ip4::Ip4SubnetAddress("1.2.3.4/0"),
-                            Util::Network::Ip4::Ip4Address("1.2.3.2"),
-                            "eth1"));
+            ip4Module.getRoutingModule().addRoute(Util::Network::Ip4::Ip4Route(address, "eth0"));
+            ip4Module.getRoutingModule().addRoute(Util::Network::Ip4::Ip4Route(Util::Network::Ip4::Ip4SubnetAddress("10.0.2.15/0"),Util::Network::Ip4::Ip4Address("10.0.2.2"),"eth0"));
         }
     }
 }
